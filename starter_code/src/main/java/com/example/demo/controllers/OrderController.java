@@ -2,6 +2,7 @@ package com.example.demo.controllers;
 
 import java.util.List;
 
+import com.example.demo.SplunkLogger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,16 +28,21 @@ public class OrderController {
 	
 	@Autowired
 	private OrderRepository orderRepository;
-	
-	
+
+
 	@PostMapping("/submit/{username}")
 	public ResponseEntity<UserOrder> submit(@PathVariable String username) {
 		User user = userRepository.findByUsername(username);
 		if(user == null) {
 			return ResponseEntity.notFound().build();
 		}
+		if (user.getCart().getItems().size() == 0) {
+			SplunkLogger.logToSplunk("The user doesn't have yet any item added to the cart", "ERROR");
+			return ResponseEntity.notFound().build();
+		}
 		UserOrder order = UserOrder.createFromCart(user.getCart());
 		orderRepository.save(order);
+		SplunkLogger.logToSplunk("Successful order with first item: " + order.getItems().get(0).getName(), "INFO");
 		return ResponseEntity.ok(order);
 	}
 	

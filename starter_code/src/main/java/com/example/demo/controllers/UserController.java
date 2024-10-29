@@ -1,5 +1,6 @@
 package com.example.demo.controllers;
 
+import com.example.demo.SplunkLogger;
 import com.example.demo.model.persistence.Cart;
 import com.example.demo.model.persistence.User;
 import com.example.demo.model.persistence.repositories.CartRepository;
@@ -20,6 +21,7 @@ public class UserController {
 	@Autowired
 	private CartRepository cartRepository;
 
+
 	@GetMapping("/id/{id}")
 	public ResponseEntity<User> findById(@PathVariable Long id) {
 		return ResponseEntity.of(userRepository.findById(id));
@@ -39,13 +41,24 @@ public class UserController {
 		cartRepository.save(cart);
 		user.setCart(cart);
 
-		if(createUserRequest.getPassword().length()<7 || !createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword()))
+		if(createUserRequest.getPassword().length()<7 || !createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())) {
+			try {
+
+				throw new RuntimeException("Runtime exception creating user, username it's not available");
+			} catch (Exception e) {
+				SplunkLogger.logToSplunk("Error al crear el usuario: " + e.getMessage(), "SEVERE");
+			}
+
 			return ResponseEntity.badRequest().build();
+		}
 
 		BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder();
 
 		user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
 		userRepository.save(user);
+
+		SplunkLogger.logToSplunk("User created with username: " + user.getUsername(), "INFO");
+
 		return ResponseEntity.ok(user);
 	}
 
